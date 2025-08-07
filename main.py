@@ -1,38 +1,37 @@
+import os
 import cv2
+from dotenv import load_dotenv
 from ultralytics import YOLO
 
-VIDEO_PATH = "your_video.mp4"  
-model = YOLO("yolov8m.pt")  
+# Load environment variables
+load_dotenv()
+MODEL_PATH = os.getenv("MODEL_PATH")
+VIDEO_PATH = os.getenv("VIDEO_PATH")
 
-# load video
+if not MODEL_PATH or not VIDEO_PATH:
+    raise ValueError("MODEL_PATH or VIDEO_PATH is missing in .env file")
+
+# load YOLOv8 model
+try:
+    model = YOLO(MODEL_PATH)
+    print(f"Loaded YOLO model from: {MODEL_PATH}")
+except Exception as e:
+    print(f"Failed to load YOLO model: {e}")
+    exit()
+
+# Open video file
 cap = cv2.VideoCapture(VIDEO_PATH)
-detected_car = None
+if not cap.isOpened():
+    print(f"Failed to open video: {VIDEO_PATH}")
+    exit()
 
-# read first few frames to find the car
-for i in range(30):
-    ret, frame = cap.read()
-    if not ret:
-        print("Failed to read frame.")
-        break
+frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+fps = cap.get(cv2.CAP_PROP_FPS)
+duration = frame_count / fps
 
-    results = model(frame)
-    for result in results:
-        for box, cls in zip(result.boxes.xyxy, result.boxes.cls):
-            if model.names[int(cls)] == "car":
-                x1, y1, x2, y2 = box.cpu().numpy().astype(int)
-                detected_car = (x1, y1, x2, y2)
-                print(f"Car detected at: {detected_car}")
-                break
-        if detected_car:
-            break
-
-if not detected_car:
-    print("No car detected in the first 30 frames!")
-else:
-    # draw the ROI around the car
-    x1, y1, x2, y2 = detected_car
-    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-    cv2.imwrite("car_detected.jpg", frame)
-    print("Saved detection as car_detected.jpg")
+print(f"Video Loaded: {VIDEO_PATH}")
+print(f"Frame count: {frame_count}")
+print(f"FPS: {fps}")
+print(f"Duration: {duration:.2f} seconds")
 
 cap.release()
